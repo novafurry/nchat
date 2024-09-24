@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #messages {
+            height: calc(100vh - 150px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #messageInput {
+            width: 80%;
+        }
+
+        #messageBar {
+            position: sticky;
+            bottom: 20px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+
+<body>
+    <main id="serverentry">
+        <h1>Enter a server</h1>
+        <label for="serverid">Server ID</label>
+        <input required class="i1" type="text" name="Server ID" id="serverid" placeholder="Enter a serverID">
+        <button class="b1" onclick="connserv()">Connect</button>
+    </main>
+    <main id="loading" style="display: none">
+        <h1>Connecting to server...</h1>
+        <progress></progress>
+    </main>
+    <main id="connectionform" style="display: none">
+        <h1>NovaChat</h1>
+        <label for="uname">Enter a username</label>
+        <input required class="i1" type="text" name="Username" id="uname" placeholder="Enter a username">
+        <label for="pass">Enter a password</label>
+        <input required class="i1" type="password" name="Password" id="pass">
+        <button class="b1" onclick="sign()">Sign Up</button>
+        <button class="b1" onclick="log()">Log In</button>
+
+    </main>
+    <main id="chat" style="display: none">
+        <big>NovaChat</big>
+        <input type="checkbox" name="Enable notifications?" id="ntf">
+        <label for="ntf">Enable notifications?</label>
+        <!-- <input type="text" id="username" placeholder="Enter username" class="i1"> -->
+        <div id="messages" class="i1"></div>
+        <div id="messagebar">
+            <input type="text" id="messageInput" placeholder="Enter message" class="i1">
+            <button disabled onclick="sendMessage()" id="sndbutton" class="b1">Send</button>
+        </div>
+    </main>
+
+    <script>
+        var conn;
+        function ntf(title, body) {
+            if (!("Notification" in window)) {
+                // Check if the browser supports notifications
+                alert("This browser does not support desktop notification");
+            } else if (Notification.permission === "granted") {
+                // Check whether notification permissions have already been granted;
+                // if so, create a notification
+                const notification = new Notification(title, { body });
+                // …
+            } else if (Notification.permission !== "denied") {
+                // We need to ask the user for permission
+                Notification.requestPermission().then((permission) => {
+                    // If the user accepts, let's create a notification
+                    if (permission === "granted") {
+                        const notification = new Notification(title, { body });
+                    }
+                });
+            }
+
+            // At last, if the user has denied notifications, and you
+            // want to be respectful there is no need to bother them anymore.
+        }
+        function sendMessage() {
+            const username = document.getElementById('uname').value;
+            const message = document.getElementById('messageInput').value;
+
+            if (message) {
+                conn.send({ type: "message", data: { username, message } });
+                document.getElementById('messageInput').value = '';
+            }
+        }
+        function sign() {
+            const username = document.getElementById('uname').value;
+            const password = document.getElementById('pass').value;
+            conn.send({ type: "signUp", data: { username, password } });
+        }
+        log = () => {
+            const username = document.getElementById('uname').value;
+            const password = document.getElementById('pass').value;
+            conn.send({ type: "logIn", data: { username, password } });
+        }
+        function connserv() {
+            window.onkeydown = function (e) {
+                if (e.key == 'Enter') {
+                    sendMessage();
+                }
+            }
+            const peer = new Peer({
+                config: {
+                    "iceServers": [{ urls: 'stun:freestun.net:3478' }, { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }]
+                }
+            });
+
+            document.querySelector('#ntf').onchange = function () {
+                if (document.querySelector('#ntf').checked) {
+                    Notification.requestPermission().then((permission) => {
+                        if (permission === "granted") {
+                            const notification = new Notification('Notifications enabled', { body: 'You will now receive notifications for new messages.' });
+                        }
+                    });
+                }
+                document.querySelector('#ntf').onchange = null;
+            }
+            if (document.querySelector("#serverid").value.length > 0) {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('serverentry').style.display = 'none';
+                console.log("connecting to server")
+                peer.on('open', (id) => {
+                    conn = peer.connect(document.querySelector("#serverid").value);
+                    conn.on('open', () => {
+                        console.log('Connected to server');
+                        conn.send({ type: "getMessages" });
+                        var sendButton = document.querySelector('#sndbutton');
+                        sendButton.disabled = false;
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('connectionform').style.display = 'block';
+                    });
+
+                    conn.on('data', (data) => {
+                        var sendButton = document.querySelector('#sndbutton');
+                        sendButton.disabled = false;
+                        console.log(data)
+                        if (data.type == "newMessage") {
+                            const messagesDiv = document.getElementById('messages');
+                            message = data.data;
+                            const messageElem = document.createElement('div');
+                            messageElem.classList.add('b1');
+                            messageElem.classList.add('notif');
+                            const title = document.createElement('b');
+                            title.innerText = message.username + ': ';
+                            messageElem.appendChild(title);
+                            const messageText = document.createElement('span');
+                            messageText.innerText = message.message;
+                            messageElem.appendChild(messageText);
+                            messagesDiv.appendChild(messageElem);
+                            if (document.hasFocus()) {
+                                return;
+                            } else {
+                                if (document.querySelector('#ntf').checked) {
+                                    ntf(message.username, message.message);
+                                }
+                            }
+                        }
+                        else if (data.type == "messageHistory") {
+                            data = data.data;
+                            const messagesDiv = document.getElementById('messages');
+                            messagesDiv.innerHTML = '';
+                            data.forEach(message => {
+                                const messageElem = document.createElement('div');
+                                messageElem.classList.add('b1');
+                                messageElem.classList.add('notif');
+                                const title = document.createElement('b');
+                                title.innerText = message.username + ': ';
+                                messageElem.appendChild(title);
+                                const messageText = document.createElement('span');
+                                messageText.innerText = message.message;
+                                messageElem.appendChild(messageText);
+                                messagesDiv.appendChild(messageElem);
+                                if (document.hasFocus()) {
+                                    return;
+                                } else {
+                                    if (document.querySelector('#ntf').checked) {
+                                        ntf(message.username, message.message);
+                                    }
+                                }
+                            });
+                        }
+                        else if (data.type == "logIn") {
+                            if (data.data.success) {
+                                document.getElementById('connectionform').style.display = 'none';
+                                document.getElementById('chat').style.display = 'block';
+                                var sendButton = document.querySelector('#sndbutton');
+                                sendButton.disabled = false;
+                            }
+                            else {
+                                alert(data.data.message);
+                            }
+                        }
+                        else if (data.type == "signUp") {
+                            if (data.data.success) {
+                                alert(data.data.message);
+                                document.getElementById('connectionform').style.display = 'none';
+                                document.getElementById('chat').style.display = 'block';
+                                var sendButton = document.querySelector('#sndbutton');
+                                sendButton.disabled = false;
+                            }
+                            else {
+                                alert(data.data.message);
+                            }
+                        }
+                    });
+                });
+                peer.on('error', (err) => {
+                    console.log(err, typeof err);
+                    if(JSON.stringify(err) == '{"type":"peer-unavailable"}'){
+                        alert("Could not connect.")
+                        window.location.reload()
+                    }
+                });
+                peer.on('disconnected', () => {
+                    alert("Disconnected from server. Reload the page.");
+                });
+                peer.on('close', () => {
+                    alert("Disconnected from server. Reload the page.");
+                });
+            } else {
+                alert("ID needs to be at least 5 chars.")
+            }
+
+        }
+    </script>
+    <style>
+        :root {
+            --sh1: #9999FF;
+            --sh2: #bbbbff;
+            --bg1: #eeeeff;
+            --bg2: #ccccff;
+            --accent: 60, 70, 235;
+            --acc: var(--accent);
+            --ui1: rgb(255, 255, 255, 0.6);
+            --ui2: #ffffff;
+            --ui3: #dddddd;
+            --font: #fefefe;
+            --bl1: 12px;
+            --bl2: 8px;
+            --rad1: 16px;
+            --rad2: 12px;
+            --rad3: 8px;
+            --fz1: 15px;
+            --fz2: 12px;
+            --inv: 0;
+        }
+
+        * {
+            user-select: none;
+            transition: all cubic-bezier(0.075, 0.82, 0.165, 1) 0.1s;
+        }
+
+        body {
+            background-color: #101010;
+            animation: fade 0.7s;
+            color: var(--font);
+            font-family: 'Poppins', Arial;
+            text-align: center;
+            font-size: var(--fz1);
+            overflow: hidden;
+        }
+
+        .bold {
+            font-family: "PoppinsB";
+        }
+
+        .med {
+            font-family: "PoppinsM";
+        }
+
+        html,
+        body {
+            overscroll-behavior: none;
+        }
+
+        button {
+            cursor: pointer;
+            font-family: 'PoppinsM', Arial;
+            color: var(--font);
+        }
+
+
+        .red {
+            background-color: rgb(255, 59, 48);
+        }
+
+        .yel {
+            background-color: rgb(255, 204, 0);
+        }
+
+        .gre {
+            background-color: rgb(52, 199, 89);
+        }
+
+        .h2 {
+            font-size: 20px;
+            font-family: 'PoppinsM', Arial;
+        }
+
+        .b2 {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .b1 {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 5px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .b1:hover,
+        .b1.on,
+        .ckbx.on {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        .b1:active,
+        .b1.on:hover,
+        .ckbx.on:hover {
+            transform: scale(0.88);
+            background-color: rgba(var(--acc), 0.20);
+        }
+
+        .b4 {
+            padding: 1px 3px;
+            border-radius: 8px;
+            background-color: rgba(var(--accent), 0.2);
+            font-size: var(--fz2);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.05s ease-in-out;
+            margin: 1px;
+        }
+
+        .b4:hover {
+            border: 1px solid rgba(var(--accent), 0.35);
+        }
+
+        .b4:active {
+            background-color: rgba(var(--accent), 0.35);
+            border-color: rgba(var(--accent), 0.8);
+            transform: scale(0.90);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .i1 {
+            padding: 5px 7px;
+            border-radius: var(--rad2);
+            border: 2px solid rgba(var(--accent), 0.4);
+            background-color: rgba(var(--accent), 0.2);
+            font-size: var(--fz1);
+            color: var(--fontc);
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'PoppinsM', Arial;
+            margin-bottom: 2px;
+            transition: 0.05s;
+            outline: none;
+        }
+
+        .i1:focus {
+            background-color: rgba(var(--accent), 0.35);
+        }
+
+        .notif {
+            width: calc(100% + 0px);
+            box-sizing: border-box;
+            animation: notif 0.3s;
+            cursor: pointer;
+            text-align: left;
+            padding: 5px 5px;
+            -webkit-backdrop-filter: blur(var(--bl1));
+            backdrop-filter: blur(var(--bl1));
+        }
+
+        .notif2 {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid var(--bordercolor);
+            padding: 7px;
+            border-radius: var(--rad2);
+            margin-bottom: 2px;
+            font-size: var(--fz2) !important;
+            cursor: pointer;
+            -webkit-backdrop-filter: blur(var(--bl1));
+            backdrop-filter: blur(var(--bl1));
+        }
+
+        .bc {
+            padding: 0px;
+            text-align: left;
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: 100%;
+        }
+
+        /* {
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        padding:5px;
+        border: 1px solid var(--ui3);
+        background-color: rgba(var(--acc), 0.3);
+        cursor: pointer;
+        transition: 0.05s;
+    } */
+        select {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 6px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: max-content;
+            min-width: fit-content;
+            display: inline-block;
+        }
+
+        select:hover {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        select:active {
+            /* transform: scale(0.88); */
+            /* padding: 4px 6px; */
+            background-color: rgba(var(--acc), 0.20);
+        }
+
+
+
+        .ckbx {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 5px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: max-content;
+            min-width: fit-content;
+            display: inline-block;
+        }
+
+        .ckbx:hover {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        .ckbx:active {
+            transform: scale(0.88);
+            background-color: rgba(var(--acc), 0.20);
+        }
+
+        main {
+            width: 90vw;
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        big {
+            font-size: 2em;
+            display: block;
+        }
+
+        @media screen and (min-width: 800px) {
+            main {
+                width: 50vw;
+                margin-top: auto;
+                margin-bottom: auto;
+            }
+
+        }
+
+        @media screen and (max-width: 800px) {
+            big {
+                display: inline;
+                font-size: 1em;
+            }
+
+        }
+
+        div#messages {
+            display: flex;
+            flex-direction: column-reverse;
+            flex-wrap: nowrap;
+            justify-content: flex-end;
+            align-items: center;
+            align-content: center;
+        }
+
+        b {
+            display: block;
+        }
+    </style>
+</body>
+
+</html>

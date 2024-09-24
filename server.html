@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Server</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
+</head>
+
+<body>
+    <h1>Chat Server</h1>
+    <p>Server ID: novaChatServerNodeUWU</p>
+    <button onclick="csid()">Change Server ID</button>
+    <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
+    <script>
+        var id = window.localStorage.getItem("id") || prompt ("Server ID")
+        window.localStorage.setItem("id", id)
+        document.querySelector("p").innerText = `Server ID: ${id}`
+        function csid(){
+            var id = prompt("Server ID", id)
+            window.localStorage.setItem("id", id)
+            window.location.reload()
+        }
+        function deleteMessage(index) {
+            messages.splice(index, 1)
+            localStorage.setItem("messages", JSON.stringify(messages))
+            clients.forEach(client => {
+                client.send({ type: "messageHistory", data: messages })
+            });
+        }
+        function checkStringsInArray(array, str1, str2) {
+            // Combine the two strings into one
+            let combinedStr = str1 + str2;
+            combinedStr = combinedStr.toLowerCase();
+            // Loop through each item in the array
+            for (let i = 0; i < array.length; i++) {
+                // Check if the current item exists in the combined string
+                if (combinedStr.includes(array[i])) {
+                    return true; // If it exists, return true
+                }
+            }
+
+            return false; // If no items from the array exist in the strings, return false
+        }
+        const peer = new Peer(id, {
+            config: {
+                "iceServers": [{ urls: 'stun:freestun.net:3478' }, { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }]
+            }
+        });
+        var log = function (m1 = "", m2 = "", m3 = "", m4 = "", m5 = "") {
+            document.getElementById('log').value = m1 + m2 + m3 + m4 + m5 + '\n' + document.getElementById('log').value;
+        }
+        let clients = [];
+        var clientsLoginDetails = JSON.parse(localStorage.getItem("accounts")) || [];
+        let clientsMessageTime = {};
+        let messages = JSON.parse(localStorage.getItem("messages")) || [];
+        var blockedTerms = [
+            "wuxton",
+            "wuxton1",
+            "wuxt0n",
+            "nig",
+            "retard",
+            "wux",
+            "Wux",
+            "pedo",
+            "p3d0",
+            "p3do"
+        ]
+        var allowedChars = [
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+            "`", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-",
+            "_", "=", "+", "[", "]", "{", "}", "\\", "|", ";", ":", "'", "\"",
+            ",", "<", ".", ">", "/", "?"
+        ];
+
+        function filterString(input) {
+            return input.split('').filter(char => allowedChars.includes(char)).join('');
+        }
+        peer.on('connection', (conn) => {
+            log('Client connected:', conn.peer);
+            // conn.send(messages)
+            clients.push(conn);
+            // log(JSON.stringify(clients));
+            conn.on('data', (data) => {
+                console.log(data, conn)
+                if (data.type == "message") {
+                    var uname = filterString(data.data.username.replaceAll("а", "a"))
+                    log('Received:', JSON.stringify(data));
+                    if (data.data.message.includes("skibid") || uname.includes("skibid")) {
+                        conn.send({ type: "newMessage", data: { username: uname, message: "ew no fuck that grow up lmaoo" }, currentUsers: clients.length  });
+                    }
+                    else if (checkStringsInArray(blockedTerms, uname, data.data.message)) {
+                        log('message blocked', JSON.stringify(data))
+                    }
+                    // else if (uname.toLowerCase().includes("nova")) {
+                    //     log('message blocked', JSON.stringify(data))
+                    // }
+                    else {
+                        var time = Date.now()
+                        if (clientsMessageTime.hasOwnProperty(conn.id)) {
+                            if ((time - clientsMessageTime[conn.id]) > 5000) {
+                                messages.push(data.data)
+                                localStorage.setItem("messages", JSON.stringify(messages))
+
+                                // Forward the message to all connected clients
+                                clients.forEach(client => {
+                                    client.send({ type: "newMessage", data: data.data });
+                                });
+                                clientsMessageTime[conn.id] = time
+                            } else {
+                                log('message blocked due to debounce', JSON.stringify(data))
+                            }
+                        } else {
+                            clientsMessageTime[conn.id] = time
+                            messages.push(data.data)
+                                localStorage.setItem("messages", JSON.stringify(messages))
+                                log("Message recieved successfully ", JSON.stringify({name:data.data.username, message:data.data.message, id:messages.length - 1}))
+
+                                // Forward the message to all connected clients
+                                clients.forEach(client => {
+                                    client.send({ type: "newMessage", data: data.data, currentUsers: clients.length  });
+                                });
+                        }
+                    }
+                } else if (data.type == "getMessages") {
+                    conn.send({ type: "messageHistory", data: messages })
+                } 
+                else if (data.type == "signUp"){
+                    var accountExists = false;
+                    clientsLoginDetails.forEach((client, index) => {
+                        if(client.username == data.data.username){
+                            accountExists = true;
+                        }
+                    })
+                    if(accountExists){
+                        conn.send({type: "signUp", data: {success: false, message: "This account already exists. Please try a different username"}})
+                    } else {
+                        clientsLoginDetails.push({username: data.data.username, password: data.data.password})
+                        conn.send({type: "signUp", data: {success: true, message: "You have successfully signed up!"}})
+                    }
+                    localStorage.setItem("accounts", JSON.stringify(clientsLoginDetails))
+                } else if (data.type == "logIn"){
+                    var accIndex = false;
+                    console.log(data.data.username)
+
+                    clientsLoginDetails.forEach((client, index) => {
+                        console.log(client.username == data.data.username)
+                        if(client.username == data.data.username){
+                            accIndex = index;
+                        }
+                    })
+                    console.log(accIndex)
+                    if(accIndex !== false){
+                        if(clientsLoginDetails[accIndex].password == data.data.password){
+                            conn.send({type: "logIn", data: {success: true, message: "You have successfully logged in!"}})
+                        } else {
+                            conn.send({type: "logIn", data: {success: false, message: "Incorrect password"}})
+                        }
+                    } else {
+                        conn.send({type: "logIn", data: {success: false, message: "This account does not exist. Please sign up"}})
+                    }
+                    localStorage.setItem("accounts", JSON.stringify(clientsLoginDetails))
+                }
+
+            });
+
+            conn.on('close', () => {
+                log('Client disconnected:', conn.peer);
+                clients = clients.filter(client => client !== conn);
+            });
+        });
+    </script>
+    <style>
+        :root {
+            --sh1: #9999FF;
+            --sh2: #bbbbff;
+            --bg1: #eeeeff;
+            --bg2: #ccccff;
+            --accent: 60, 70, 235;
+            --acc: var(--accent);
+            --ui1: rgb(255, 255, 255, 0.6);
+            --ui2: #ffffff;
+            --ui3: #dddddd;
+            --font: #fefefe;
+            --bl1: 12px;
+            --bl2: 8px;
+            --rad1: 16px;
+            --rad2: 12px;
+            --rad3: 8px;
+            --fz1: 15px;
+            --fz2: 12px;
+            --inv: 0;
+        }
+
+        * {
+            user-select: none;
+            transition: all cubic-bezier(0.075, 0.82, 0.165, 1) 0.1s;
+        }
+
+        body {
+            background-color: #101010;
+            animation: fade 0.7s;
+            color: var(--font);
+            font-family: 'Poppins', Arial;
+            text-align: center;
+            font-size: var(--fz1);
+            overflow: hidden;
+        }
+
+        .bold {
+            font-family: "PoppinsB";
+        }
+
+        .med {
+            font-family: "PoppinsM";
+        }
+
+        html,
+        body {
+            overscroll-behavior: none;
+        }
+
+        button {
+            cursor: pointer;
+            font-family: 'PoppinsM', Arial;
+            color: var(--font);
+        }
+
+
+        .red {
+            background-color: rgb(255, 59, 48);
+        }
+
+        .yel {
+            background-color: rgb(255, 204, 0);
+        }
+
+        .gre {
+            background-color: rgb(52, 199, 89);
+        }
+
+        .h2 {
+            font-size: 20px;
+            font-family: 'PoppinsM', Arial;
+        }
+
+        .b2 {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .b1 {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 5px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .b1:hover,
+        .b1.on,
+        .ckbx.on {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        .b1:active,
+        .b1.on:hover,
+        .ckbx.on:hover {
+            transform: scale(0.88);
+            background-color: rgba(var(--acc), 0.20);
+        }
+
+        .b4 {
+            padding: 1px 3px;
+            border-radius: 8px;
+            background-color: rgba(var(--accent), 0.2);
+            font-size: var(--fz2);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.05s ease-in-out;
+            margin: 1px;
+        }
+
+        .b4:hover {
+            border: 1px solid rgba(var(--accent), 0.35);
+        }
+
+        .b4:active {
+            background-color: rgba(var(--accent), 0.35);
+            border-color: rgba(var(--accent), 0.8);
+            transform: scale(0.90);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .i1 {
+            padding: 5px 7px;
+            border-radius: var(--rad2);
+            border: 2px solid rgba(var(--accent), 0.4);
+            background-color: rgba(var(--accent), 0.2);
+            font-size: var(--fz1);
+            color: var(--fontc);
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'PoppinsM', Arial;
+            margin-bottom: 2px;
+            transition: 0.05s;
+            outline: none;
+        }
+
+        .i1:focus {
+            background-color: rgba(var(--accent), 0.35);
+        }
+
+        .notif {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--ui1);
+            border: 1px solid var(--ui3);
+            padding: 8px;
+            border-radius: var(--rad1);
+            margin-bottom: 5px;
+            animation: notif 0.3s;
+            cursor: pointer;
+            text-align: left;
+            -webkit-backdrop-filter: blur(var(--bl1));
+            backdrop-filter: blur(var(--bl1));
+        }
+
+        .notif2 {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid var(--bordercolor);
+            padding: 7px;
+            border-radius: var(--rad2);
+            margin-bottom: 2px;
+            font-size: var(--fz2) !important;
+            cursor: pointer;
+            -webkit-backdrop-filter: blur(var(--bl1));
+            backdrop-filter: blur(var(--bl1));
+        }
+
+        .bc {
+            padding: 0px;
+            text-align: left;
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: 100%;
+        }
+
+        /* {
+            width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            padding:5px;
+            border: 1px solid var(--ui3);
+            background-color: rgba(var(--acc), 0.3);
+            cursor: pointer;
+            transition: 0.05s;
+        } */
+        select {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 6px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: max-content;
+            min-width: fit-content;
+            display: inline-block;
+        }
+
+        select:hover {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        select:active {
+            /* transform: scale(0.88); */
+            /* padding: 4px 6px; */
+            background-color: rgba(var(--acc), 0.20);
+        }
+
+
+
+        .ckbx {
+            background-color: rgba(var(--acc), 0.3);
+            border-radius: var(--rad2);
+            font-size: var(--fz1);
+            padding: 5px 8px;
+            margin: 1px;
+            transition: 0.08s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+            width: max-content;
+            min-width: fit-content;
+            display: inline-block;
+        }
+
+        .ckbx:hover {
+            background-color: rgba(var(--acc), 0.4);
+            border: 1px solid rgba(var(--acc), 0.6);
+            box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 20px 4px;
+        }
+
+        .ckbx:active {
+            transform: scale(0.88);
+            background-color: rgba(var(--acc), 0.20);
+        }
+        b{
+            display: block;
+        }
+    </style>
+</body>
+
+</html>
