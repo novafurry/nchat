@@ -145,7 +145,7 @@
                     if(accountExists){
                         conn.send({type: "signUp", data: {success: false, message: "This account already exists. Please try a different username"}})
                     } else {
-                        clientsLoginDetails.push({username: data.data.username, password: sha256(data.data.password)})
+                        clientsLoginDetails.push({username: data.data.username, password: await sha256(data.data.password)})
                         conn.send({type: "signUp", data: {success: true, message: "You have successfully signed up!"}})
                     }
                     localStorage.setItem("accounts", JSON.stringify(clientsLoginDetails))
@@ -161,7 +161,7 @@
                     })
                     console.log(accIndex)
                     if(accIndex !== false){
-                        if(clientsLoginDetails[accIndex].password == sha256(data.data.password)){
+                        if(clientsLoginDetails[accIndex].password == await sha256(data.data.password)){
                             conn.send({type: "logIn", data: {success: true, message: "You have successfully logged in!"}})
                         } else {
                             conn.send({type: "logIn", data: {success: false, message: "Incorrect password"}})
