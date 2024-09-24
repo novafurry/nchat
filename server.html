@@ -13,6 +13,12 @@
     <button onclick="csid()">Change Server ID</button>
     <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
     <script>
+        async function sha256(source) {
+            const sourceBytes = new TextEncoder().encode(source);
+            const digest = await crypto.subtle.digest("SHA-256", sourceBytes);
+            const resultBytes = [...new Uint8Array(digest)];
+            return resultBytes.map(x => x.toString(16).padStart(2, '0')).join("");
+        }
         var id = window.localStorage.getItem("id") || prompt ("Server ID")
         window.localStorage.setItem("id", id)
         document.querySelector("p").innerText = `Server ID: ${id}`
@@ -139,7 +145,7 @@
                     if(accountExists){
                         conn.send({type: "signUp", data: {success: false, message: "This account already exists. Please try a different username"}})
                     } else {
-                        clientsLoginDetails.push({username: data.data.username, password: data.data.password})
+                        clientsLoginDetails.push({username: data.data.username, password: sha256(data.data.password)})
                         conn.send({type: "signUp", data: {success: true, message: "You have successfully signed up!"}})
                     }
                     localStorage.setItem("accounts", JSON.stringify(clientsLoginDetails))
@@ -155,7 +161,7 @@
                     })
                     console.log(accIndex)
                     if(accIndex !== false){
-                        if(clientsLoginDetails[accIndex].password == data.data.password){
+                        if(clientsLoginDetails[accIndex].password == sha256(data.data.password)){
                             conn.send({type: "logIn", data: {success: true, message: "You have successfully logged in!"}})
                         } else {
                             conn.send({type: "logIn", data: {success: false, message: "Incorrect password"}})
