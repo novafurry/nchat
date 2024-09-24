@@ -88,9 +88,7 @@
         }
         peer.on('connection', (conn) => {
             log('Client connected:', conn.peer);
-            // conn.send(messages)
             clients.push(conn);
-            // log(JSON.stringify(clients));
             conn.on('data', async function (data) {
                 console.log(data, conn)
                 if (data.type == "message") {
@@ -102,17 +100,13 @@
                     else if (checkStringsInArray(blockedTerms, uname, data.data.message)) {
                         log('message blocked', JSON.stringify(data))
                     }
-                    // else if (uname.toLowerCase().includes("nova")) {
-                    //     log('message blocked', JSON.stringify(data))
-                    // }
                     else {
                         var time = Date.now()
                         if (clientsMessageTime.hasOwnProperty(conn.id)) {
-                            if ((time - clientsMessageTime[conn.id]) > 5000) {
+                            if ((time - clientsMessageTime[conn.id]) > 1000) {
                                 messages.push(data.data)
                                 localStorage.setItem("messages", JSON.stringify(messages))
 
-                                // Forward the message to all connected clients
                                 clients.forEach(client => {
                                     client.send({ type: "newMessage", data: data.data });
                                 });
@@ -126,7 +120,6 @@
                                 localStorage.setItem("messages", JSON.stringify(messages))
                                 log("Message recieved successfully ", JSON.stringify({name:data.data.username, message:data.data.message, id:messages.length - 1}))
 
-                                // Forward the message to all connected clients
                                 clients.forEach(client => {
                                     client.send({ type: "newMessage", data: data.data, currentUsers: clients.length  });
                                 });
