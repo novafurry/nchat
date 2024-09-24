@@ -91,7 +91,7 @@
             // conn.send(messages)
             clients.push(conn);
             // log(JSON.stringify(clients));
-            conn.on('data', (data) => {
+            conn.on('data', async function (data) {
                 console.log(data, conn)
                 if (data.type == "message") {
                     var uname = filterString(data.data.username.replaceAll("а", "a"))
