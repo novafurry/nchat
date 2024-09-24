@@ -35,6 +35,9 @@
         <label for="serverid">Server ID</label>
         <input required class="i1" type="text" name="Server ID" id="serverid" placeholder="Enter a serverID">
         <button class="b1" onclick="connserv()">Connect</button>
+        <h2> - OR - </h2>
+        <p>Pick a server from below:</p>
+        <button onclick="connserv('NCHATMainNode')" class="b1">Official NovaChat server (NCHATMainNode)</button>
     </main>
     <main id="loading" style="display: none">
         <h1>Connecting to server...</h1>
@@ -105,7 +108,7 @@
             const password = document.getElementById('pass').value;
             conn.send({ type: "logIn", data: { username, password } });
         }
-        function connserv() {
+        function connserv(sid = document.querySelector('serverid').value) {
             window.onkeydown = function (e) {
                 if (e.key == 'Enter') {
                     sendMessage();
@@ -127,12 +130,12 @@
                 }
                 document.querySelector('#ntf').onchange = null;
             }
-            if (document.querySelector("#serverid").value.length > 0) {
+            if (sid > 0) {
                 document.getElementById('loading').style.display = 'block';
                 document.getElementById('serverentry').style.display = 'none';
                 console.log("connecting to server")
                 peer.on('open', (id) => {
-                    conn = peer.connect(document.querySelector("#serverid").value);
+                    conn = peer.connect(sid);
                     conn.on('open', () => {
                         console.log('Connected to server');
                         conn.send({ type: "getMessages" });
