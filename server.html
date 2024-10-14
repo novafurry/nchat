@@ -9,10 +9,25 @@
 
 <body>
     <h1>Chat Server</h1>
-    <p>Server ID: novaChatServerNodeUWU</p>
+    <p>Server ID: loading</p>
     <button onclick="csid()">Change Server ID</button>
-    <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
-    <script>
+    <details>
+        <summary>Logs</summary>
+        <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
+    </details>
+    <details>
+        <summary>User Management</summary>
+        <ul class="userlist">
+            <li><span>Username</span><button class="b1" title="Kick User">🥾</button><button class="b1" title="Ban username">🚫</button></li>
+        </ul>
+    </details>
+    <details>
+        <summary>Basic Automatic Moderation</summary>
+    </details>
+    <details>
+        <summary>Message Manager</summary>
+    </details>
+    <!-- <script>
         async function sha256(source) {
             const sourceBytes = new TextEncoder().encode(source);
             const digest = await crypto.subtle.digest("SHA-256", sourceBytes);
@@ -174,7 +189,7 @@
                 clients = clients.filter(client => client !== conn);
             });
         });
-    </script>
+    </script> -->
     <style>
         :root {
             --sh1: #9999FF;
@@ -426,6 +441,12 @@
         }
         b{
             display: block;
+        }
+        .userlist span{
+            margin-right: 10px;
+        }
+        ul{
+            list-style-type: none;
         }
     </style>
 </body>
