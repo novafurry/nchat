@@ -10,7 +10,7 @@
 <body>
     <h1>Chat Server</h1>
     <p>Server ID: loading</p>
-    <button onclick="csid()">Change Server ID</button>
+    <button class="b1" onclick="csid()">Change Server ID</button>
     <details>
         <summary>Logs</summary>
         <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
@@ -168,11 +168,41 @@
                         var pass = await sha256(data.data.password);
                         if(clientsLoginDetails[accIndex].password == pass && clientsLoginDetails[accIndex].banned == false){
                             conn.send({type: "logIn", data: {success: true, message: "You have successfully logged in!"}})
-                        } else if(clientsLoginDetails[accIndex].banned){
-                            conn.send({type: "logIn", data: {success: false, message: "You are banned."}})
-                        } 
-                        else {
+                            // add user to userlist
+                            // HTML format <li><span>Username</span><button class="b1" title="Kick User">🥾</button><button class="b1" title="Ban username">🚫</button></li>
+                            // kick button should disconnect their client, ban disconnects and toggles a boolean in the clientsLoginDetails array, and commits to localstorage
+                            // buttons should be functional out of the box
+                            var li = document.createElement("li")
+                            var span = document.createElement("span")
+                            span.innerText = clientsLoginDetails[accIndex].username
+                            var kick = document.createElement("button")
+                            kick.addEventListener("click", () => {
+                                conn.send({type: "kick", data: {message: "You have been kicked from the server."}})
+                                conn.close()
+                            })
+                            kick.classList.add("b1")
+                            kick.innerText = "🥾"
+                            var ban = document.createElement("button")
+                            ban.addEventListener("click", () => {
+                                clientsLoginDetails[accIndex].banned = !clientsLoginDetails[accIndex].banned
+                                localStorage.setItem("accounts", JSON.stringify(clientsLoginDetails))
+                                conn.send({type: "ban", data: {message: "You have been banned from the server."}})
+                                conn.close()
+                            })
+                            ban.classList.add("b1")
+                            ban.innerText = "🚫"
+                            li.appendChild(span)
+                            li.appendChild(kick)
+                            li.appendChild(ban)
+                            document.querySelector(".userlist").appendChild(li)
+                        }   else if (clientsLoginDetails[accIndex].password != pass){
                             conn.send({type: "logIn", data: {success: false, message: "Incorrect password"}})
+                        } else if(clientsLoginDetails[accIndex].banned){
+                            conn.send({type: "logIn", data: {success: false, message: "You are banned from this server."}})
+                        } 
+                        else{
+                            conn.send({type: "logIn", data: {success: false, message: "Unknown error occured."}})
+                            
                         }
                     } else {
                         conn.send({type: "logIn", data: {success: false, message: "This account does not exist. Please sign up"}})
