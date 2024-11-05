@@ -10,7 +10,7 @@
 <body>
     <h1>Chat Server</h1>
     <p>Server ID: loading</p>
-    <button class="b1" onclick="csid()">Change Server ID</button>
+    <button onclick="csid()">Change Server ID</button>
     <details>
         <summary>Logs</summary>
         <textarea name="" id="log" class="i1" readonly style="height: calc(100vh - 110px);"></textarea>
@@ -85,7 +85,6 @@
                 ]`))
         }
         var blockedTerms = JSON.parse(localStorage.getItem("blockedTerms"))
-                
         var allowedChars = [
             "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
             "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
@@ -108,7 +107,7 @@
                 if (data.type == "message") {
                     var uname = filterString(data.data.username.replaceAll("а", "a"))
                     log('Received:', JSON.stringify(data));
-                    else if (checkStringsInArray(blockedTerms, uname, data.data.message)) {
+                    if (checkStringsInArray(blockedTerms, uname, data.data.message)) {
                         log('message blocked', JSON.stringify(data))
                     }
                     else {
