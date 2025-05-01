@@ -109,7 +109,7 @@
             const password = document.getElementById('pass').value;
             conn.send({ type: "logIn", data: { username, password } });
         }
-        function connserv(sid = document.querySelector('serverid').value) {
+        function connserv(sid = document.querySelector('#serverid').value) {
             window.onkeydown = function (e) {
                 if (e.key == 'Enter') {
                     sendMessage();
